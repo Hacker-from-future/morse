@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Morse Code Converter</title>
+    <style>
+        /* Body Styling */
+        body {
+            font-family: 'Courier New', monospace;
+            margin: 0;
+            padding: 0;
+            background-color: #1e1e1e;
+            color: #00ff00;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        /* Animated Falling Alphanumeric Background */
+        .falling-chars {
+            position: absolute;
+            top: 100;
+            left: 50;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .falling-chars span {
+            position: absolute;
+            top: -100%;
+            left: calc(var(--i) * 3%);
+            font-size: 1.5rem;
+            font-family: monospace;
+            color: rgba(0, 255, 0, 0.8);
+            animation: fall 4s linear infinite;
+            animation-delay: calc(var(--i) * 0.1s);
+        }
+
+        @keyframes fall {
+            0% {
+                top: -10%;
+                opacity: 0.8;
+            }
+            50% {
+                opacity: 1;
+            }
+            100% {
+                top: 110%;
+                opacity: 0;
+            }
+        }
+
+        /* Main Container */
+        .container {
+            position: relative;
+            max-width: 600px;
+            margin: auto;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.85);
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0, 255, 0, 0.6);
+            text-align: center;
+            animation: fadeIn 1s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            0% {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        h1 {
+            color: #00ff00;
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            animation: glow 1.5s infinite alternate;
+        }
+
+        @keyframes glow {
+            0% {
+                text-shadow: 0 0 5px #00ff00, 0 0 10px #00ff00;
+            }
+            100% {
+                text-shadow: 0 0 20px #00ff00, 0 0 30px #00ff00;
+            }
+        }
+
+        /* UI Elements (select, textarea, button) */
+        textarea, select, button {
+            width: 100%;
+            margin: 10px 0;
+            padding: 12px;
+            font-size: 18px;
+            background-color: #333;
+            color: #00ff00;
+            border: 2px solid #00ff00;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: all 0.3s ease-in-out;
+        }
+
+        textarea {
+            height: 120px;
+            line-height: 1.5;
+            resize: none;
+        }
+
+        button {
+            background-color: #00ff00;
+            color: #000;
+            cursor: pointer;
+            transition: transform 0.3s ease, background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #32cd32;
+            transform: scale(1.05);
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        select {
+            background-color: #222;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        /* Secret Surprise text */
+        .surprise {
+            font-size: 1rem;
+            color: #ff0;
+            display: none;
+        }
+
+        /* User greeting */
+        .greeting {
+            font-size: 1.3rem;
+            margin: 10px 0;
+            color: #00ff00;
+        }
+
+        /* Footer */
+        footer {
+            position: absolute;
+            bottom: 10px;
+            width: 100%;
+            text-align: center;
+            font-size: 0.8rem;
+            color: rgba(0, 255, 0, 0.6);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Falling Alphanumeric Characters -->
+    <div class="falling-chars" id="falling-chars"></div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <h1>Morse Code Converter</h1>
+        <div class="greeting" id="greeting"></div>
+        <select id="mode">
+            <option value="toMorse">Alphanumeric to Morse Code</option>
+            <option value="toText">Morse Code to Alphanumeric</option>
+        </select>
+        <textarea id="input" rows="4" placeholder="Enter your text or Morse code here"></textarea>
+        <button onclick="convert()">Convert</button>
+        <textarea id="output" rows="4" placeholder="Output will appear here" readonly></textarea>
+        <div class="surprise" id="surprise">🎉 You found the secret greeting! 🎉</div>
+    </div>
+   
+
+    <footer>Powered by AJAAA||2024</footer>
+    
+
+    <script>
+        const MORSE_CODE_DICT = {
+            'A': '.-', 'B': '-...', 'C': '-.-.', 'D': '-..', 'E': '.', 'F': '..-.',
+            'G': '--.', 'H': '....', 'I': '..', 'J': '.---', 'K': '-.-', 'L': '.-..',
+            'M': '--', 'N': '-.', 'O': '---', 'P': '.--.', 'Q': '--.-', 'R': '.-.',
+            'S': '...', 'T': '-', 'U': '..-', 'V': '...-', 'W': '.--', 'X': '-..-',
+            'Y': '-.--', 'Z': '--..', '1': '.----', '2': '..---', '3': '...--',
+            '4': '....-', '5': '.....', '6': '-....', '7': '--...', '8': '---..',
+            '9': '----.', '0': '-----', ' ': '/'
+        };
+
+        const REVERSE_MORSE_CODE_DICT = Object.fromEntries(
+            Object.entries(MORSE_CODE_DICT).map(([key, value]) => [value, key])
+        );
+
+        // Display greeting based on the time
+        const greetingElement = document.getElementById("greeting");
+        const hours = new Date().getHours();
+        if (hours < 12) {
+            greetingElement.textContent = "Good Morning! Ready to decode?";
+        } else if (hours < 18) {
+            greetingElement.textContent = "Good Afternoon! Let's convert some code!";
+        } else {
+            greetingElement.textContent = "Good Evening! Want to play with Morse?";
+        }
+
+        // Show Easter egg on specific input
+        document.getElementById("input").addEventListener("input", () => {
+            const inputValue = document.getElementById("input").value.trim().toUpperCase();
+            const surpriseElement = document.getElementById("surprise");
+            if (inputValue === "HELLO") {
+                surpriseElement.style.display = "block";
+            } else {
+                surpriseElement.style.display = "none";
+            }
+        });
+
+        function convert() {
+            const mode = document.getElementById("mode").value;
+            const input = document.getElementById("input").value.trim();
+            const output = document.getElementById("output");
+
+            if (mode === "toMorse") {
+                output.value = input.toUpperCase()
+                    .split('')
+                    .map(char => MORSE_CODE_DICT[char] || '?')
+                    .join(' ');
+            } else if (mode === "toText") {
+                output.value = input.split(' / ')
+                    .map(word => word.split(' ')
+                        .map(code => REVERSE_MORSE_CODE_DICT[code] || '?')
+                        .join(''))
+                    .join(' ');
+            }
+        }
+        function playMorseCode(morse) {
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const dotDuration = 200; // Duration of a dot in milliseconds
+    const dashDuration = dotDuration * 3;
+    const gapBetweenSymbols = dotDuration; // Pause between dots/dashes
+    const gapBetweenLetters = dashDuration; // Pause between letters
+    const gapBetweenWords = dashDuration * 2; // Pause between words
+
+    let currentTime = audioContext.currentTime;
+
+    morse.split('').forEach((symbol, index) => {
+        if (symbol === '.') {
+            playBeep(audioContext, currentTime, dotDuration);
+            currentTime += dotDuration / 1000 + gapBetweenSymbols / 1000;
+        } else if (symbol === '-') {
+            playBeep(audioContext, currentTime, dashDuration);
+            currentTime += dashDuration / 1000 + gapBetweenSymbols / 1000;
+        } else if (symbol === ' ') {
+            currentTime += gapBetweenLetters / 1000;
+        } else if (symbol === '/') {
+            currentTime += gapBetweenWords / 1000;
+        }
+    });
+}
+
+function playBeep(audioContext, startTime, duration) {
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(600, audioContext.currentTime); // Frequency of the beep
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    oscillator.start(startTime);
+    oscillator.stop(startTime + duration / 1000);
+}
+
+// Updated convert function to play sounds
+function convert() {
+    const mode = document.getElementById("mode").value;
+    const input = document.getElementById("input").value.trim();
+    const output = document.getElementById("output");
+
+    if (mode === "toMorse") {
+        const morse = input.toUpperCase()
+            .split('')
+            .map(char => MORSE_CODE_DICT[char] || '?')
+            .join(' ');
+        output.value = morse;
+        playMorseCode(morse);
+    } else if (mode === "toText") {
+        const text = input.split(' / ')
+            .map(word => word.split(' ')
+                .map(code => REVERSE_MORSE_CODE_DICT[code] || '?')
+                .join(''))
+            .join(' ');
+        output.value = text;
+    }
+}
+
+
+        // Create alphanumeric falling effect
+        const fallingContainer = document.getElementById("falling-chars");
+        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        setInterval(() => {
+            const char = characters.charAt(Math.floor(Math.random() * characters.length));
+            const span = document.createElement("span");
+            span.style.setProperty('--i', Math.random());
+            span.textContent = char;
+            fallingContainer.appendChild(span);
+            setTimeout(() => fallingContainer.removeChild(span), 4000);
+        }, 100);
+    </script>
+
+</body>     
+</html>
